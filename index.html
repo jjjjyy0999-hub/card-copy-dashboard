@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>비즈그리다 | 카드사 매체별 광고 문구 심의·교정 대시보드</title>
-  <!-- SheetJS (브라우저에서 엑셀 생성용 CDN) -->
+  <!-- SheetJS (브라우저에서 엑셀 읽기/쓰기용 CDN) -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     :root {
@@ -19,6 +19,7 @@
       --accent-hover: #1d4ed8;
       --success: #059669;
       --danger: #dc2626;
+      --warning: #d97706;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
@@ -26,32 +27,32 @@
 
     /* 좌측 사이드바 */
     .sidebar {
-      width: 250px;
+      width: 260px;
       background: var(--sidebar-bg);
       color: var(--sidebar-text);
       display: flex;
       flex-direction: column;
       padding: 24px 16px;
       flex-shrink: 0;
+      gap: 16px;
     }
     .brand {
       font-size: 18px;
       font-weight: 700;
       color: #fff;
-      padding: 0 12px 20px;
+      padding: 0 12px 16px;
       border-bottom: 1px solid #374151;
-      margin-bottom: 20px;
     }
     .brand span { display: block; font-size: 12px; font-weight: 400; color: #9ca3af; margin-top: 4px; }
 
-    .nav-label { font-size: 11px; text-transform: uppercase; color: #9ca3af; padding: 0 12px; margin-bottom: 8px; letter-spacing: 0.05em; }
+    .nav-label { font-size: 11px; text-transform: uppercase; color: #9ca3af; padding: 0 12px; margin-bottom: 6px; letter-spacing: 0.05em; }
     .nav-btn {
       width: 100%;
       text-align: left;
       background: transparent;
       border: none;
       color: var(--sidebar-text);
-      padding: 12px 14px;
+      padding: 11px 14px;
       border-radius: 8px;
       font-size: 14px;
       font-weight: 500;
@@ -66,15 +67,14 @@
     .nav-btn.active { background: var(--accent); color: #fff; font-weight: 600; }
     .badge { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: rgba(255,255,255,0.15); }
 
-    .api-box {
-      margin-top: auto;
+    .side-box {
       padding: 14px;
       background: #1f2937;
       border-radius: 10px;
       font-size: 12px;
     }
-    .api-box label { display: block; color: #e5e7eb; font-weight: 600; margin-bottom: 6px; }
-    .api-box input {
+    .side-box label { display: block; color: #e5e7eb; font-weight: 600; margin-bottom: 6px; }
+    .side-box input {
       width: 100%;
       padding: 7px 9px;
       border-radius: 6px;
@@ -83,16 +83,16 @@
       color: #fff;
       font-size: 12px;
     }
-    .api-box p { color: #9ca3af; font-size: 11px; margin-top: 6px; line-height: 1.4; }
+    .side-box p { color: #9ca3af; font-size: 11px; margin-top: 6px; line-height: 1.4; }
 
     /* 메인 콘텐츠 */
-    .main { flex: 1; padding: 28px 32px; overflow-y: auto; max-width: 1400px; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .main { flex: 1; padding: 28px 32px; overflow-y: auto; max-width: 1440px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
     .header h1 { font-size: 22px; font-weight: 700; }
     .header p { font-size: 13px; color: var(--text-sub); margin-top: 4px; }
 
     .btn {
-      padding: 10px 16px;
+      padding: 9px 15px;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: #fff;
@@ -110,8 +110,9 @@
     .btn-primary:hover { background: var(--accent-hover); }
     .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
     .btn-success:hover { background: #047857; }
+    .btn-dark { background: #1f2937; color: #fff; border-color: #1f2937; }
+    .btn-dark:hover { background: #111827; }
 
-    /* 가이드 패널 */
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -120,12 +121,12 @@
       margin-bottom: 20px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
     .card-title { font-size: 15px; font-weight: 700; }
 
     .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
     .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-sub); margin-bottom: 5px; }
-    .field input, .field textarea {
+    .field input, .field textarea, .field select {
       width: 100%;
       padding: 9px 11px;
       border: 1px solid var(--border);
@@ -135,15 +136,23 @@
     }
     .field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
 
-    /* 작업 영역 (원본 vs 교정본) */
+    /* Bitly 변환 바 */
+    .bitly-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1.2fr auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    /* 일괄 입력 & 교정 영역 */
     .work-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
     .editor-box textarea {
       width: 100%;
-      height: 240px;
+      height: 250px;
       padding: 14px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13.5px;
       line-height: 1.6;
       resize: vertical;
     }
@@ -155,6 +164,8 @@
       margin-top: 10px;
       font-size: 12px;
       color: var(--text-sub);
+      flex-wrap: wrap;
+      gap: 8px;
     }
     .byte-ok { color: var(--success); font-weight: 700; }
     .byte-over { color: var(--danger); font-weight: 700; }
@@ -169,17 +180,34 @@
       line-height: 1.5;
     }
 
+    /* 엑셀 업로드 라벨 */
+    .file-upload-btn {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .file-upload-btn input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
     /* 누적 리스트 테이블 */
+    .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
     th { background: #f9fafb; font-weight: 600; color: var(--text-sub); }
-    .pre-cell { white-space: pre-wrap; max-width: 360px; line-height: 1.45; }
-    .del-btn { color: var(--danger); background: none; border: none; cursor: pointer; font-size: 12px; }
+    .pre-cell { white-space: pre-wrap; min-width: 220px; max-width: 380px; line-height: 1.45; }
+    .del-btn { color: var(--danger); background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; }
 
-    @media (max-width: 960px) {
+    @media (max-width: 1024px) {
       body { flex-direction: column; }
       .sidebar { width: 100%; }
-      .guide-grid, .work-grid { grid-template-columns: 1fr; }
+      .guide-grid, .work-grid, .bitly-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -192,21 +220,29 @@
       <span>카드사 타겟 메시징 문구 교정</span>
     </div>
 
-    <div class="nav-label">매체 선택</div>
-    <button class="nav-btn active" data-media="hyundai" onclick="selectMedia('hyundai')">
-      현대카드 <span class="badge">LMS/RCS</span>
-    </button>
-    <button class="nav-btn" data-media="kb" onclick="selectMedia('kb')">
-      국민카드 <span class="badge">KB Pay/문자</span>
-    </button>
-    <button class="nav-btn" data-media="bc" onclick="selectMedia('bc')">
-      비씨카드 <span class="badge">페이북/문자</span>
-    </button>
+    <div>
+      <div class="nav-label">매체 선택</div>
+      <button class="nav-btn active" data-media="hyundai" onclick="selectMedia('hyundai')">
+        현대카드 <span class="badge">LMS/RCS</span>
+      </button>
+      <button class="nav-btn" data-media="kb" onclick="selectMedia('kb')">
+        국민카드 <span class="badge">KB Pay/문자</span>
+      </button>
+      <button class="nav-btn" data-media="bc" onclick="selectMedia('bc')">
+        비씨카드 <span class="badge">페이북/문자</span>
+      </button>
+    </div>
 
-    <div class="api-box">
+    <div class="side-box">
+      <label for="bitlyToken">Bitly API Token</label>
+      <input type="password" id="bitlyToken" placeholder="Bitly 토큰 입력 (선택)" onchange="saveTokens()" />
+      <p>bit.ly 앱 토큰 입력 시 실제 단축 링크가 생성됩니다. 미입력 시 테스트용 단축 주소가 생성됩니다.</p>
+    </div>
+
+    <div class="side-box" style="margin-top:auto;">
       <label for="geminiKey">Gemini API 키 (선택사항)</label>
-      <input type="password" id="geminiKey" placeholder="AI자유교정용 키 입력" onchange="saveApiKey()" />
-      <p>미입력 시 아래 설정된 <b>규칙 기반 자동 교정</b>으로 즉시 작동합니다.</p>
+      <input type="password" id="geminiKey" placeholder="AI 심층 교정용 키 입력" onchange="saveTokens()" />
+      <p>미입력 시 규칙 기반 일괄 교정으로 즉시 처리됩니다.</p>
     </div>
   </aside>
 
@@ -215,13 +251,36 @@
     <div class="header">
       <div>
         <h1 id="mediaTitle">현대카드 문구 검수 및 교정</h1>
-        <p id="mediaDesc">현대카드 LMS/RCS 발송 규격 및 심의 가이드라인을 기준으로 광고주 원고를 자동 교정합니다.</p>
+        <p id="mediaDesc">현대카드 LMS/RCS 발송 규격 및 심의 가이드라인을 기준으로 광고주 원고를 일괄 교정합니다.</p>
       </div>
-      <div style="display:flex; gap:8px;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn" onclick="resetGuides()">가이드 기본값 복원</button>
         <button class="btn btn-success" onclick="exportExcel()">📥 엑셀 다운로드 (.xlsx)</button>
       </div>
     </div>
+
+    <!-- 기본링크 -> Bitly 변환 칸 -->
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title">🔗 기본링크 → Bitly 단축 링크 변환</span>
+        <span style="font-size:12px; color:var(--text-sub);">변환된 링크를 복사하거나 문구 입력창에 바로 넣을 수 있습니다.</span>
+      </div>
+      <div class="bitly-row">
+        <div class="field">
+          <label for="longUrl">기본 링크 (원본 URL)</label>
+          <input type="url" id="longUrl" placeholder="https://example.com/landing?utm_source=card" />
+        </div>
+        <div class="field">
+          <label for="shortUrl">변환된 Bitly 링크</label>
+          <input type="text" id="shortUrl" readonly placeholder="변환 결과가 여기에 표시됩니다" />
+        </div>
+        <button class="btn btn-dark" onclick="convertToBitly()">Bitly 변환</button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn" onclick="copyShortUrl()">복사</button>
+          <button class="btn btn-primary" onclick="insertShortUrlToText()">문구에 넣기</button>
+        </div>
+      </div>
+    </section>
 
     <!-- 매체별 가이드 설정 카드 -->
     <section class="card">
@@ -232,11 +291,11 @@
       <div class="guide-grid">
         <div class="field">
           <label>필수 머릿말 (자동 삽입)</label>
-          <input type="text" id="gPrefix" placeholder="예: (광고)[현대카드]" />
+          <input type="text" id="gPrefix" placeholder="예: (광고)[현대카드 제휴혜택]" />
         </div>
         <div class="field">
           <label>필수 꼬릿말 / 무료수신거부</label>
-          <input type="text" id="gSuffix" placeholder="예: 무료수신거부 080-000-0000" />
+          <input type="text" id="gSuffix" placeholder="예: 무료수신거부 080-815-0114" />
         </div>
         <div class="field">
           <label>최대 허용 바이트 (EUC-KR 기준 Byte)</label>
@@ -246,41 +305,47 @@
       <div class="guide-grid" style="margin-top:12px; grid-template-columns: 1fr 1fr;">
         <div class="field">
           <label>금지어 자동 치환 규칙 (형식: 금지어=대체어, 쉼표 구분)</label>
-          <textarea id="gReplacements" rows="2" placeholder="최고=우수, 100%=높은 확률로, 무조건=혜택 적용 시, 완치=개선"></textarea>
+          <textarea id="gReplacements" rows="2"></textarea>
         </div>
         <div class="field">
           <label>매체 특이사항 / AI 교정 프롬프트 가이드</label>
-          <textarea id="gPrompt" rows="2" placeholder="과장 광고 표현 순화, 특수문자 남발 제거, 고객 혜택 중심 정중한 어조 유지"></textarea>
+          <textarea id="gPrompt" rows="2"></textarea>
         </div>
       </div>
     </section>
 
-    <!-- 원고 입력 및 교정 출력 -->
+    <!-- 원고 일괄 입력(엑셀/복붙) 및 매체사 문구 가이드 형식 변경 -->
     <section class="work-grid">
       <div class="card editor-box">
         <div class="card-header">
-          <span class="card-title">1. 광고주 원본 문구 입력</span>
-          <button class="btn" onclick="loadSample()">예시 문구 넣기</button>
+          <span class="card-title">1. 엑셀 첨부 또는 텍스트 막 복붙</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <label class="btn file-upload-btn">
+              📂 엑셀 첨부 (.xlsx/.csv)
+              <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)" />
+            </label>
+            <button class="btn" onclick="loadBulkSample()">예시 넣기</button>
+          </div>
         </div>
-        <textarea id="rawText" placeholder="광고주에게 전달받은 문자 초안을 붙여넣으세요..." oninput="updateBytes()"></textarea>
+        <textarea id="rawText" placeholder="엑셀 파일을 첨부하거나, 광고주에게 받은 문구들을 그냥 막 복사해서 붙여넣으세요!&#10;&#10;※ 여러 문구를 넣을 때는 빈 줄(엔터 2번) 또는 --- 구분선으로 나누면 각각 개별 문구로 인식해 한 번에 교정합니다." oninput="updateBytes()"></textarea>
         <div class="meta-bar">
-          <span>원본 용량: <strong id="rawByte">0</strong> Byte</span>
-          <div style="display:flex; gap:8px;">
-            <button class="btn btn-primary" onclick="runRuleCorrection()">⚡ 규칙 기반 즉시 교정</button>
-            <button class="btn" onclick="runAICorrection()">✨ AI 심층 교정</button>
+          <span>감지 문구 수: <strong id="detectedCount">0</strong>건 · 용량: <strong id="rawByte">0</strong> Byte</span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="transformByMediaGuide()">✨ 매체사 문구 가이드 형식으로 변경</button>
+            <button class="btn" onclick="runAICorrection()">🤖 AI 심층 교정</button>
           </div>
         </div>
       </div>
 
       <div class="card editor-box">
         <div class="card-header">
-          <span class="card-title">2. 매체 가이드 반영 교정 결과</span>
-          <button class="btn btn-primary" onclick="addToList()">+ 엑셀 목록에 담기</button>
+          <span class="card-title">2. 최근 교정 미리보기 (직접 수정 가능)</span>
+          <button class="btn" onclick="addPreviewToList()">+ 미리보기 목록에 추가</button>
         </div>
-        <textarea id="fixedText" placeholder="교정된 문구가 여기에 표시됩니다. 직접 미세 수정도 가능합니다." oninput="updateBytes()"></textarea>
+        <textarea id="fixedText" placeholder="[매체사 문구 가이드 형식으로 변경] 버튼을 누르면 교정된 결과가 여기에 표시되며, 아래 '엑셀 추출 대기 목록'에도 자동 반영됩니다." oninput="updateBytes()"></textarea>
         <div class="meta-bar">
           <span>교정 용량: <strong id="fixedByte" class="byte-ok">0</strong> / <span id="limitByteDisplay">2000</span> Byte</span>
-          <button class="btn" onclick="copyResult()">결과 복사</button>
+          <button class="btn" onclick="copyResult()">미리보기 복사</button>
         </div>
         <div id="changeLog" class="log-box" style="display:none;"></div>
       </div>
@@ -290,28 +355,32 @@
     <section class="card">
       <div class="card-header">
         <span class="card-title">📋 엑셀 추출 대기 목록 (<span id="listCount">0</span>건)</span>
-        <button class="btn" onclick="clearList()">목록 비우기</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-success" onclick="exportExcel()">📥 엑셀 다운로드 (.xlsx)</button>
+          <button class="btn" onclick="clearList()">목록 비우기</button>
+        </div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th style="width:100px;">매체</th>
-            <th>원본 문구</th>
-            <th>교정 완료 문구</th>
-            <th style="width:90px;">용량</th>
-            <th style="width:140px;">검수 내역</th>
-            <th style="width:60px;">삭제</th>
-          </tr>
-        </thead>
-        <tbody id="recordBody">
-          <tr><td colspan="6" style="text-align:center; color:#9ca3af; padding:24px;">아직 담긴 문구가 없습니다. 위에서 문구를 교정한 뒤 <b>[+ 엑셀 목록에 담기]</b>를 눌러주세요.</td></tr>
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:105px;">매체</th>
+              <th>원본 문구</th>
+              <th>교정 완료 문구</th>
+              <th style="width:110px;">용량</th>
+              <th style="width:170px;">검수 내역</th>
+              <th style="width:65px;">삭제</th>
+            </tr>
+          </thead>
+          <tbody id="recordBody">
+            <tr><td colspan="6" style="text-align:center; color:#9ca3af; padding:24px;">아직 담긴 문구가 없습니다. 문구를 넣고 <b>[매체사 문구 가이드 형식으로 변경]</b>을 눌러주세요.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </main>
 
   <script>
-    // 1. 매체별 기본 가이드 데이터 (실무 규정에 맞게 언제든 수정 가능)
     const DEFAULT_GUIDES = {
       hyundai: {
         name: "현대카드",
@@ -346,18 +415,18 @@
     let guides = JSON.parse(localStorage.getItem("bizgrida_card_guides")) || structuredClone(DEFAULT_GUIDES);
     let records = JSON.parse(localStorage.getItem("bizgrida_card_records")) || [];
 
-    // 초기화
     window.onload = () => {
+      document.getElementById("bitlyToken").value = localStorage.getItem("bizgrida_bitly_token") || "";
       document.getElementById("geminiKey").value = localStorage.getItem("bizgrida_gemini_key") || "";
       selectMedia("hyundai");
       renderRecords();
     };
 
-    function saveApiKey() {
+    function saveTokens() {
+      localStorage.setItem("bizgrida_bitly_token", document.getElementById("bitlyToken").value.trim());
       localStorage.setItem("bizgrida_gemini_key", document.getElementById("geminiKey").value.trim());
     }
 
-    // 매체 전환
     function selectMedia(mediaKey) {
       currentMedia = mediaKey;
       document.querySelectorAll(".nav-btn").forEach(btn => {
@@ -376,7 +445,6 @@
       updateBytes();
     }
 
-    // 가이드 저장 및 초기화
     function saveCurrentGuide() {
       guides[currentMedia] = {
         ...guides[currentMedia],
@@ -389,7 +457,6 @@
       localStorage.setItem("bizgrida_card_guides", JSON.stringify(guides));
       document.getElementById("limitByteDisplay").textContent = guides[currentMedia].maxByte;
       updateBytes();
-      alert(`${guides[currentMedia].name} 가이드가 브라우저에 저장되었습니다.`);
     }
 
     function resetGuides() {
@@ -399,7 +466,17 @@
       selectMedia(currentMedia);
     }
 
-    // EUC-KR 기준 바이트 계산 (한글 2byte, 영문/숫자/특수문자/줄바꿈 1byte)
+    // 여러 문구 자동 분리 (빈 줄 2개 이상 또는 --- 구분선 기준, 단일 문구면 통째로 1건 처리)
+    function parseInputTexts(rawStr) {
+      const trimmed = rawStr.trim();
+      if (!trimmed) return [];
+      const blocks = trimmed
+        .split(/\n\s*\n+|-{3,}\s*\n?/g)
+        .map(b => b.trim())
+        .filter(Boolean);
+      return blocks.length ? blocks : [trimmed];
+    }
+
     function getByteLength(str) {
       let bytes = 0;
       for (let i = 0; i < str.length; i++) {
@@ -413,107 +490,174 @@
       const fixed = document.getElementById("fixedText").value;
       const limit = parseInt(document.getElementById("gMaxByte").value, 10) || 2000;
 
+      document.getElementById("detectedCount").textContent = parseInputTexts(raw).length;
       document.getElementById("rawByte").textContent = getByteLength(raw);
+
       const fixedLen = getByteLength(fixed);
       const fixedEl = document.getElementById("fixedByte");
       fixedEl.textContent = fixedLen;
       fixedEl.className = fixedLen <= limit ? "byte-ok" : "byte-over";
     }
 
-    function loadSample() {
+    // 엑셀 파일 업로드 처리
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+          const extracted = [];
+          rows.forEach((row, idx) => {
+            if (!row || !row.length) return;
+            // 첫 행이 헤더('문구', '원본문구', '내용' 등)인 경우 건너뜀
+            const firstCell = String(row[0] ?? "").trim();
+            if (!firstCell) return;
+            if (idx === 0 && /^(문구|원본문구|광고문구|내용|text|copy)$/i.test(firstCell)) return;
+            extracted.push(firstCell);
+          });
+
+          if (!extracted.length) {
+            alert("엑셀 첫 번째 열에서 문구 데이터를 찾지 못했습니다.");
+            return;
+          }
+
+          const currentVal = document.getElementById("rawText").value.trim();
+          const joined = extracted.join("\n\n");
+          document.getElementById("rawText").value = currentVal ? `${currentVal}\n\n${joined}` : joined;
+          updateBytes();
+          alert(`엑셀에서 ${extracted.length}건의 문구를 불러왔습니다. [매체사 문구 가이드 형식으로 변경] 버튼을 눌러주세요.`);
+        } catch (err) {
+          console.error(err);
+          alert("엑셀 파일을 읽는 중 오류가 발생했습니다. .xlsx, .xls, .csv 형식을 확인해주세요.");
+        } finally {
+          event.target.value = "";
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function loadBulkSample() {
       document.getElementById("rawText").value =
-        "★긴급혜택★ 지금 신청하시면 무조건 100% 당첨!!\n" +
-        "업계 최고 수준의 프리미엄 관리 프로그램, 망설이면 마감됩니다.\n" +
-        "지금 바로 상담 신청하고 공짜 혜택 받아가세요~\n" +
-        "▶ 신청링크 : https://example.com/event";
+        "★긴급혜택★ 지금 신청하시면 무조건 100% 당첨!!\n업계 최고 수준의 관리 프로그램, 공짜 혜택 받아가세요~\n\n" +
+        "선착순 마감! 최저가 혜택과 완치 지원까지 지금 바로 확인하세요??";
       updateBytes();
     }
 
-    // 규칙 기반 자동 교정
-    function runRuleCorrection() {
-      saveCurrentGuide();
-      const raw = document.getElementById("rawText").value.trim();
-      if (!raw) return alert("원본 문구를 먼저 입력해주세요.");
-
-      const g = guides[currentMedia];
-      let text = raw;
+    // 단일 문구 규칙 기반 교정 함수
+    function applyGuideRules(singleRaw, g) {
+      let text = singleRaw.trim();
       const logs = [];
 
-      // 1. 중복 느낌표/물음표 및 과도한 기호 정리
       const cleanedSymbols = text.replace(/!{2,}/g, "!").replace(/\?{2,}/g, "?");
       if (cleanedSymbols !== text) {
         text = cleanedSymbols;
-        logs.push("중복 문장부호(!!, ??) 정리");
+        logs.push("중복 문장부호 정리");
       }
 
-      // 2. 금지어 치환 규칙 적용
       if (g.replacements) {
         g.replacements.split(",").forEach(pair => {
           const [bad, good] = pair.split("=").map(s => s && s.trim());
           if (bad && good && text.includes(bad)) {
             text = text.split(bad).join(good);
-            logs.push(`금지어 치환: '${bad}' → '${good}'`);
+            logs.push(`'${bad}'→'${good}'`);
           }
         });
       }
 
-      // 3. 필수 머릿말 삽입 (이미 포함되어 있지 않을 때)
       if (g.prefix && !text.startsWith(g.prefix)) {
-        // 기존 (광고) 표기 중복 방지
         text = text.replace(/^\(광고\)\s*/g, "");
         text = `${g.prefix}\n${text}`;
-        logs.push(`필수 머릿말 삽입 (${g.prefix})`);
+        logs.push("머릿말 삽입");
       }
 
-      // 4. 필수 꼬릿말(무료수신거부) 삽입
       if (g.suffix && !text.includes(g.suffix)) {
         text = `${text}\n\n${g.suffix}`;
-        logs.push(`필수 수신거부 문구 삽입`);
+        logs.push("수신거부 삽입");
       }
 
-      document.getElementById("fixedText").value = text;
+      return {
+        fixedText: text,
+        summary: logs.length ? logs.join(", ") : "규정 적합"
+      };
+    }
+
+    // [매체사 문구 가이드 형식으로 변경] 일괄 변환 및 목록 자동 적재
+    function transformByMediaGuide() {
+      saveCurrentGuide();
+      const rawAll = document.getElementById("rawText").value.trim();
+      if (!rawAll) return alert("엑셀을 첨부하거나 문구를 먼저 붙여넣어 주세요.");
+
+      const items = parseInputTexts(rawAll);
+      const g = guides[currentMedia];
+      const today = new Date().toLocaleDateString("ko-KR");
+
+      const results = items.map(item => {
+        const res = applyGuideRules(item, g);
+        return {
+          id: Date.now() + Math.random(),
+          media: g.name,
+          raw: item,
+          fixed: res.fixedText,
+          bytes: `${getByteLength(res.fixedText)} / ${g.maxByte} Byte`,
+          summary: res.summary,
+          date: today
+        };
+      });
+
+      records = [...results.reverse(), ...records];
+      localStorage.setItem("bizgrida_card_records", JSON.stringify(records));
+      renderRecords();
+
+      // 오른쪽 미리보기에는 첫 번째(또는 전체) 교정본 표시
+      const previewAll = [...results].reverse().map(r => r.fixed).join("\n\n--------------------\n\n");
+      document.getElementById("fixedText").value = previewAll;
       updateBytes();
 
       const logBox = document.getElementById("changeLog");
       logBox.style.display = "block";
-      logBox.innerHTML = `<strong>[검수 완료]</strong> ` + (logs.length ? logs.join(" · ") : "규정 위반 항목 없음 (형식 검증 완료)");
-      logBox.dataset.summary = logs.length ? logs.join(", ") : "규정 적합";
+      logBox.innerHTML = `<strong>[${g.name} 가이드 일괄 변환 완료]</strong> 총 <b>${items.length}건</b>을 교정하여 아래 엑셀 추출 목록에 담았습니다.`;
     }
 
-    // Gemini API 연동 AI 심층 교정
+    // AI 심층 교정 (첫 번째 문구 또는 전체 문구 기준)
     async function runAICorrection() {
       const apiKey = document.getElementById("geminiKey").value.trim();
       if (!apiKey) {
-        alert("좌측 하단에 Gemini API 키를 입력하면 AI 심층 문맥 교정이 작동합니다.\n지금은 [규칙 기반 즉시 교정]을 실행합니다.");
-        return runRuleCorrection();
+        alert("좌측 Gemini API 키가 없어 [매체사 문구 가이드 형식으로 변경]을 실행합니다.");
+        return transformByMediaGuide();
       }
 
-      const raw = document.getElementById("rawText").value.trim();
-      if (!raw) return alert("원본 문구를 먼저 입력해주세요.");
-
       saveCurrentGuide();
+      const rawAll = document.getElementById("rawText").value.trim();
+      if (!rawAll) return alert("문구를 먼저 입력해주세요.");
+
       const g = guides[currentMedia];
       const logBox = document.getElementById("changeLog");
       logBox.style.display = "block";
       logBox.innerHTML = "⏳ AI가 매체 가이드를 참고해 문구를 교정하고 있습니다...";
 
-      const systemPrompt = `당신은 한국 카드사(${g.name}) 타겟 메시징(LMS/RCS) 광고 심의 전문가입니다.
-아래 매체 가이드를 엄격히 준수하여 원본 광고 문구를 교정하세요.
-- 필수 머릿말: ${g.prefix}
-- 필수 꼬릿말: ${g.suffix}
-- 최대 허용 용량: ${g.maxByte} Byte 이내
-- 금지어 치환 기준: ${g.replacements}
-- 추가 지침: ${g.prompt}
+      const prompt = `당신은 한국 카드사(${g.name}) 타겟 메시징 심의 전문가입니다.
+가이드:
+- 머릿말: ${g.prefix}
+- 꼬릿말: ${g.suffix}
+- 최대용량: ${g.maxByte} Byte
+- 금지어치환: ${g.replacements}
+- 추가지침: ${g.prompt}
 
-출력 형식은 반드시 JSON으로만 응답하세요:
-{"correctedText": "교정된 최종 문자 전문", "summary": "주요 수정 사항 1줄 요약"}`;
+입력 문구들을 매체 가이드에 맞게 교정하세요. 여러 문구가 있으면 각 문구별로 교정해 주세요.
+반드시 JSON만 반환하세요: {"correctedText": "교정된 전체 문구", "summary": "요약"}`;
 
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemPrompt}\n\n[원본 문구]\n${raw}` }] }],
+            contents: [{ parts: [{ text: `${prompt}\n\n[원본]\n${rawAll}` }] }],
             generationConfig: { responseMimeType: "application/json" }
           })
         });
@@ -523,40 +667,93 @@
         document.getElementById("fixedText").value = parsed.correctedText;
         updateBytes();
         logBox.innerHTML = `<strong>[AI 교정 완료]</strong> ${parsed.summary}`;
-        logBox.dataset.summary = `AI교정: ${parsed.summary}`;
       } catch (err) {
         console.error(err);
-        logBox.innerHTML = "⚠️ AI 호출 중 오류가 발생하여 규칙 기반 교정으로 대체합니다.";
-        runRuleCorrection();
+        transformByMediaGuide();
       }
+    }
+
+    function addPreviewToList() {
+      const raw = document.getElementById("rawText").value.trim();
+      const fixed = document.getElementById("fixedText").value.trim();
+      if (!fixed) return alert("교정된 미리보기 문구가 없습니다.");
+
+      const g = guides[currentMedia];
+      records.unshift({
+        id: Date.now() + Math.random(),
+        media: g.name,
+        raw: raw || "(직접 입력/수정)",
+        fixed,
+        bytes: `${getByteLength(fixed)} / ${g.maxByte} Byte`,
+        summary: "미리보기 추가",
+        date: new Date().toLocaleDateString("ko-KR")
+      });
+      localStorage.setItem("bizgrida_card_records", JSON.stringify(records));
+      renderRecords();
+    }
+
+    // Bitly 단축 링크 변환
+    async function convertToBitly() {
+      const longUrl = document.getElementById("longUrl").value.trim();
+      if (!longUrl) return alert("변환할 기본 링크(URL)를 입력해주세요.");
+
+      const normalizedUrl = /^https?:\/\//i.test(longUrl) ? longUrl : `https://${longUrl}`;
+      const token = document.getElementById("bitlyToken").value.trim();
+
+      if (!token) {
+        // 토큰 미입력 시 즉시 쓸 수 있는 로컬 단축 코드 생성
+        let hash = 0;
+        for (let i = 0; i < normalizedUrl.length; i++) {
+          hash = ((hash << 5) - hash) + normalizedUrl.charCodeAt(i);
+          hash |= 0;
+        }
+        const code = Math.abs(hash).toString(36).slice(0, 7);
+        document.getElementById("shortUrl").value = `https://bit.ly/${code}`;
+        alert("Bitly 토큰이 없어 테스트용 단축 주소를 생성했습니다. 실제 bit.ly 발급을 원하시면 좌측에 Bitly API Token을 입력해주세요.");
+        return;
+      }
+
+      try {
+        const res = await fetch("https://api-ssl.bitly.com/v4/shorten", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ long_url: normalizedUrl })
+        });
+        const data = await res.json();
+        if (data.link) {
+          document.getElementById("shortUrl").value = data.link;
+        } else {
+          alert("Bitly 변환 실패: 토큰 또는 URL 형식을 확인해주세요.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Bitly API 호출 중 오류가 발생했습니다.");
+      }
+    }
+
+    function copyShortUrl() {
+      const val = document.getElementById("shortUrl").value;
+      if (!val) return;
+      navigator.clipboard.writeText(val);
+      alert("Bitly 링크가 복사되었습니다.");
+    }
+
+    function insertShortUrlToText() {
+      const shortVal = document.getElementById("shortUrl").value;
+      if (!shortVal) return alert("먼저 Bitly 변환을 진행해주세요.");
+      const ta = document.getElementById("rawText");
+      ta.value = ta.value ? `${ta.value}\n${shortVal}` : shortVal;
+      updateBytes();
     }
 
     function copyResult() {
       const fixed = document.getElementById("fixedText").value;
       if (!fixed) return;
       navigator.clipboard.writeText(fixed);
-      alert("교정된 문구가 클립보드에 복사되었습니다.");
-    }
-
-    // 엑셀 목록에 추가
-    function addToList() {
-      const raw = document.getElementById("rawText").value.trim();
-      const fixed = document.getElementById("fixedText").value.trim();
-      if (!fixed) return alert("교정된 문구가 없습니다. 먼저 교정을 실행해주세요.");
-
-      const summary = document.getElementById("changeLog").dataset.summary || "수동/규칙 교정";
-      records.unshift({
-        id: Date.now(),
-        media: guides[currentMedia].name,
-        raw,
-        fixed,
-        bytes: `${getByteLength(fixed)} / ${guides[currentMedia].maxByte} Byte`,
-        summary,
-        date: new Date().toLocaleDateString("ko-KR")
-      });
-
-      localStorage.setItem("bizgrida_card_records", JSON.stringify(records));
-      renderRecords();
+      alert("교정 문구가 복사되었습니다.");
     }
 
     function deleteRecord(id) {
@@ -566,7 +763,7 @@
     }
 
     function clearList() {
-      if (!records.length || !confirm("담긴 목록을 모두 비울까요?")) return;
+      if (!records.length || !confirm("목록을 모두 비울까요?")) return;
       records = [];
       localStorage.setItem("bizgrida_card_records", JSON.stringify(records));
       renderRecords();
@@ -577,7 +774,7 @@
       document.getElementById("listCount").textContent = records.length;
 
       if (!records.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#9ca3af; padding:24px;">아직 담긴 문구가 없습니다. 위에서 문구를 교정한 뒤 <b>[+ 엑셀 목록에 담기]</b>를 눌러주세요.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#9ca3af; padding:24px;">아직 담긴 문구가 없습니다. 문구를 넣고 <b>[매체사 문구 가이드 형식으로 변경]</b>을 눌러주세요.</td></tr>`;
         return;
       }
 
@@ -594,12 +791,11 @@
     }
 
     function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+      return String(str).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
     }
 
-    // 엑셀(.xlsx) 다운로드
     function exportExcel() {
-      if (!records.length) return alert("엑셀로 다운로드할 문구 목록이 비어 있습니다. 먼저 목록에 담아주세요.");
+      if (!records.length) return alert("다운로드할 문구 목록이 비어 있습니다.");
 
       const excelData = records.map((r, idx) => ({
         "순번": records.length - idx,
